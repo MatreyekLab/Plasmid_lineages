@@ -1,0 +1,80 @@
+---
+title: "Plasmid_network"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+library(tidyverse)
+#install.packages("GGally")
+library(GGally)
+#install.packages("network")
+library(network)
+#install.packages("sna")
+library(sna)
+```
+
+## R Markdown
+```{r Plasmid network}
+
+## Current plasmids
+current <- read.csv(file = "MatreyekLab_Hifi_Reactions - colonies_success_rates.csv", header = T, stringsAsFactors = F)
+
+current_lineage_data <- current[,c("sample","precursor1","precursor2","successful_1")] %>% filter(precursor1 != "" & successful_1 == 1)
+
+current_precursor_1 <- current_lineage_data[,c("sample","precursor1")] %>% filter(precursor1 != "")
+current_precursor_2 <- current_lineage_data[,c("sample","precursor2")] %>% filter(precursor2 != "")
+colnames(current_precursor_1) <- c("sample","precursor")
+colnames(current_precursor_2) <- c("sample","precursor")
+
+
+## Old plasmids
+old <- read.csv(file = "MatreyekLab_Hifi_Reactions - Old_plasmid_lineages.csv", header = T, stringsAsFactors = F)
+
+old_lineage_data <- old[,c("sample","precursor1","precursor2")] %>% filter(precursor1 != "")
+
+old_precursor_1 <- old_lineage_data[,c("sample","precursor1")] %>% filter(precursor1 != "")
+old_precursor_2 <- old_lineage_data[,c("sample","precursor2")] %>% filter(precursor2 != "")
+colnames(old_precursor_1) <- c("sample","precursor")
+colnames(old_precursor_2) <- c("sample","precursor")
+
+
+## Combine both
+precursor_data <- rbind(current_precursor_1, current_precursor_2, old_precursor_1, old_precursor_2)
+
+precursor_matrix <- as.matrix(precursor_data)
+sample_list <- unique(precursor_matrix[,"sample"])
+precursor_list <- unique(precursor_matrix[,"precursor"])
+all_list <- append(sample_list, precursor_list)
+unique_all <- unique(all_list)
+print(unique_all)
+
+connection_matrix <- matrix(0, nrow = length(unique_all), ncol = length(unique_all))
+dimnames(connection_matrix) <- list(unique_all, unique_all)
+connection_matrix
+
+
+for (x in 1:nrow(precursor_matrix)){
+  connection_matrix[precursor_matrix[x,1],precursor_matrix[x,2]] <- 1
+}
+connection_matrix
+
+lineage_network <- network(t(connection_matrix), directed = TRUE, 
+                                    ignore.eval = FALSE, names.eval = "weights")
+
+lineage_network
+
+#https://briatte.github.io/ggnet/
+
+#set.edge.attribute(lineage_network, "color", ifelse(lineage_network %e% "weights" == 1, "grey80", "grey80"))
+networkplot <- ggnet2(lineage_network, palette = "Set3", label = TRUE, size = 4, label.size = 1.5,
+       arrow.size = 3, edge.size = 1, arrow.type = "closed", arrow.gap = 0.02, alpha = 0.7) + 
+  theme(panel.background = element_rect(color = "grey90"), legend.position = "none")
+networkplot
+
+ggsave(file = "PlasmidLineagePlot.png", networkplot, height = 8, width = 8)
+ggsave(file = "/Users/kmatreyek/Dropbox/Website/Plots/PlasmidLineagePlot.png", networkplot, height = 8, width = 8)
+```
+
+
